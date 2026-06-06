@@ -33,7 +33,7 @@
 ; Added FILE Print - 2476 Bytes
 ; Added VIEW Status Bar (Ln/Col) - 2476 Bytes
 ; Added DIALOG based Feature - 2686 Bytes
-;
+; Added KEYBOARD accelerators - 2794 Bytes
 ; Compiler directives and includes:
  
 .386                       ; Full 80386 instruction set and mode
@@ -46,8 +46,8 @@ option casemap:none        ; Preserve the case of system identifiers but not our
 ; it out entirely.  With every switch 0 the output is byte-
 ; for-byte the original baseline build (2686 bytes); a feature
 ; only costs space when it is switched on.
-FEAT_LINENUMBERS = 1       ; View > Line Numbers gutter (default OFF)
-FEAT_DARKMODE    = 1       ; View > Dark Mode (default OFF)
+FEAT_LINENUMBERS = 0       ; View > Line Numbers gutter (default OFF)
+FEAT_DARKMODE    = 0       ; View > Dark Mode (default OFF)
 ; ==========================================================
 
 ; Include files - headers and libs that we need for
@@ -182,6 +182,7 @@ EXTERN _imp__MessageBoxA@16        :PTR ; simple About dialog
 EXTERN _imp__TrackPopupMenu@28     :PTR ; show context popup menu
 EXTERN _imp__DestroyMenu@4         :PTR ; free a menu handle
 EXTERN _imp__GetMessagePos@0       :PTR ; screen coords of last msg
+EXTERN _imp__GetKeyState@4         :PTR ; shortcut modifier state
 EXTERN _imp__SendMessageA@16       :PTR ; talk to EDIT control
 EXTERN _imp__ChooseFontW@4         :PTR ; common font picker dialog
 EXTERN _imp__FindTextA@4           :PTR ; common Find dialog
@@ -236,7 +237,7 @@ fDirty      dd 0                    ; EDIT modified flag
 fWrap       dd 1                    ; word wrap state
 
 UntitledText db "Untitled",0
-NotepadTail  db " - RetroPad",0
+NotepadTail  db " - TinyRetroPad",0
 
 MFile       db "&File",0
 MEdit       db "&Edit",0
@@ -270,10 +271,10 @@ MFont       db "&Font...",0
 MStatusBar  db "&Status Bar",0
 
 MViewHelp   db "&View Help",0
-MAbout      db "&About RetroPad",0
-AboutCap    db "RetroPad",0
-AboutText   db "RetroPad - tiny notepad-style editor",0
-SaveCap     db "RetroPad",0
+MAbout      db "&About TinyRetroPad",0
+AboutCap    db "TinyRetroPad",0
+AboutText   db "TinyRetroPad - tiny notepad-style editor",0
+SaveCap     db "TinyRetroPad",0
 SaveAskText db "Save changes?",0
 SpaceText   db " ",0
 DateBuf     db 32 dup (0)
@@ -288,7 +289,7 @@ hFindDlg    dd 0                   ; modeless find/replace dialog HWND
 uFindMsg    dd 0                   ; registered FINDMSGSTRING message
 
 StaticClass db "STATIC",0          ; built-in class for status bar pane
-DocName     db "RetroPad",0        ; print job document name
+DocName     db "TinyRetroPad",0    ; print job document name
 LnColFmt    db "  Ln %d, Col %d",0 ; status bar Ln/Col format
 StatusBuf   db 48 dup (0)          ; formatted Ln/Col text
 hStatus     dd 0                   ; status bar window handle
@@ -1886,6 +1887,75 @@ MainEntry proc NEAR
         test    eax, eax
         jne     MessageLoop
       NotFindDlg:
+
+        ; manual Notepad-style accelerators not supplied by the EDIT control
+        cmp     msg.message, WM_KEYDOWN
+        jne     NotAppAccel
+        xor     ecx, ecx
+        mov     eax, msg.wParam
+        cmp     eax, VK_F3
+        je      AccelFindNext
+        cmp     eax, VK_F5
+        je      AccelTime
+        push    VK_CONTROL
+        call    [_imp__GetKeyState@4]
+        test    ah, 80h
+        je      NotAppAccel
+        mov     eax, msg.wParam
+        cmp     eax, 'N'
+        je      AccelNew
+        cmp     eax, 'O'
+        je      AccelOpen
+        cmp     eax, 'S'
+        je      AccelSave
+        cmp     eax, 'P'
+        je      AccelPrint
+        cmp     eax, 'F'
+        je      AccelFind
+        cmp     eax, 'H'
+        je      AccelReplace
+        cmp     eax, 'G'
+        je      AccelGoTo
+        jmp     NotAppAccel
+      AccelNew:
+        mov     ecx, IDM_FILE_NEW
+        jmp     SendAppAccel
+      AccelOpen:
+        mov     ecx, IDM_FILE_OPEN
+        jmp     SendAppAccel
+      AccelSave:
+        mov     ecx, IDM_SAVE
+        push    VK_SHIFT
+        call    [_imp__GetKeyState@4]
+        test    ah, 80h
+        je      SendAppAccel
+        mov     ecx, IDM_FILE_SAVEAS
+        jmp     SendAppAccel
+      AccelPrint:
+        mov     ecx, IDM_FILE_PRINT
+        jmp     SendAppAccel
+      AccelFind:
+        mov     ecx, IDM_EDIT_FIND
+        jmp     SendAppAccel
+      AccelFindNext:
+        mov     ecx, IDM_EDIT_FINDNEXT
+        jmp     SendAppAccel
+      AccelReplace:
+        mov     ecx, IDM_EDIT_REPLACE
+        jmp     SendAppAccel
+      AccelGoTo:
+        mov     ecx, IDM_EDIT_GOTO
+        jmp     SendAppAccel
+      AccelTime:
+        mov     ecx, IDM_EDIT_TIME
+      SendAppAccel:
+        push    0
+        push    ecx
+        push    WM_COMMAND
+        push    hMain
+        call    [_imp__SendMessageA@16]
+        jmp     MessageLoop
+      NotAppAccel:
 
         ; translate key input
         lea     eax, msg
