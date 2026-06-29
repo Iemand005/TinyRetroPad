@@ -221,6 +221,10 @@ EXTERN _imp__GetMenu@4             :PTR ; menu bar for the check mark
 EXTERN _imp__CheckMenuItem@12      :PTR ; check/uncheck Dark Mode
 ENDIF
 
+IF FEAT_HIDPI
+EXTERN _imp__SetProcessDpiAwarenessContext@4 :PTR ; set DPI awareness
+ENDIF
+
 ClassName   db ".",0                ; save bytes here (seems to work)
 RichDll     db "Msftedit",0         ; Rich Edit DLL (no ext saves those bytes)
 EditClass   db "RICHEDIT50W",0      ; modern Rich Edit control from WinAPI
