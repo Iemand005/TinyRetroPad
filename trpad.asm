@@ -1802,6 +1802,7 @@ MainEntry proc NEAR
     LOCAL   msg:       MSG
 
 IF FEAT_HIDPI
+    ; enable per-monitor DPI awareness (v2)
     push    0FFFFFFFCh
     call    [_imp__SetProcessDpiAwarenessContext@4]
 ENDIF
